@@ -13,7 +13,7 @@ mkdir -p build/classes build/dex .local
 rm -rf build/classes build/dex
 mkdir -p build/classes build/dex
 "$tools/aapt2" compile --dir app/src/main/res -o build/resources.zip
-"$tools/aapt2" link -I "$android" --manifest app/src/main/AndroidManifest.xml --version-code 1 --version-name 0.1.0 -o build/base.apk build/resources.zip
+"$tools/aapt2" link -I "$android" --manifest app/src/main/AndroidManifest.xml --version-code 2 --version-name 0.1.1 -o build/base.apk build/resources.zip
 find app/src/main/java -name '*.java' -print > build/sources.txt
 javac --release 8 -Xlint:-options -encoding UTF-8 -cp "$android" -d build/classes @build/sources.txt
 python3 - <<'PY'

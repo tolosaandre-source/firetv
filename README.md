@@ -4,7 +4,7 @@ Aplicativo Android experimental para mostrar a hora (24 horas) em um canto da te
 
 ## Download
 
-[Baixar APK de teste 0.1.0](https://github.com/tolosaandre-source/firetv/raw/refs/heads/main/downloads/firetv-clock-0.1.0-debug.apk)
+[Baixar APK de teste 0.1.1](https://github.com/tolosaandre-source/firetv/raw/refs/heads/main/downloads/firetv-clock-0.1.1-debug.apk)
 
 Compilação e assinatura verificadas. Ainda não testado em um Fire TV físico. O checksum está em [downloads/SHA256SUMS](downloads/SHA256SUMS). Para os comandos de instalação abaixo, renomeie o arquivo baixado para `firetv-clock-debug.apk`.
 
@@ -39,6 +39,20 @@ adb shell appops set br.com.tolosa.fireclock SYSTEM_ALERT_WINDOW allow
 ```
 
 Se o dispositivo rejeitar a autorização, registre a mensagem; não há garantia de suporte nesse firmware. Volte ao app e selecione “Ativar relógio”. Pressione Home e abra um vídeo. Use “Mudar canto da tela”, “Mudar tamanho” e “Desativar relógio” para ajustar.
+
+## Diagnóstico da versão 0.1.1
+
+Esta versão exibe permissão, estado real de anexação da janela e falhas retornadas pelo sistema. A versão anterior ocultava falhas de sobreposição; a causa da invisibilidade relatada com permissão concedida ainda não foi identificada no aparelho. A prévia dentro do app só verifica a exibição local do horário.
+
+Instale por cima da versão anterior (mesma assinatura, versionCode maior), selecione “Ativar relógio”, aguarde dois segundos e anote as linhas “Permissão”, “Sobreposição” e “Falha”, se houver. Se estiver anexada mas invisível, teste na tela inicial e dentro do aplicativo. “Mudar canto” sozinho apenas salva a preferência quando o relógio está desativado.
+
+Se a janela não for anexada e nenhuma falha aparecer, obtenha os registros pelo computador autorizado, logo após tentar ativar:
+
+```sh
+adb logcat -d -v time FireClock:E AndroidRuntime:E ActivityManager:W '*:S'
+```
+
+Os registros podem conter dados de outros aplicativos; compartilhe apenas as linhas relacionadas a br.com.tolosa.fireclock ou FireClock.
 
 ## Verificação no aparelho
 

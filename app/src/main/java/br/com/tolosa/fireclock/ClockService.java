@@ -15,6 +15,8 @@ import java.util.Date;
 import java.util.Locale;
 
 public class ClockService extends Service implements SharedPreferences.OnSharedPreferenceChangeListener {
+    public static volatile boolean running;
+    private boolean attached;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private WindowManager windows;
     private TextView clock;
@@ -30,6 +32,16 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
 
     @Override public void onCreate() {
         super.onCreate();
+        prefs = getSharedPreferences("clock", MODE_PRIVATE);
+        prefs.edit().remove("error").apply();
+        try {
+            initialize();
+        } catch (RuntimeException e) {
+            fail(e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
+    private void initialize() {
         NotificationManager manager = getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel("clock", "Relógio ativo",
                 NotificationManager.IMPORTANCE_LOW));
@@ -40,9 +52,11 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
                 .setContentText("Abra o app para desativar ou ajustar.")
                 .setSmallIcon(android.R.drawable.ic_menu_recent_history)
                 .setContentIntent(open).setOngoing(true).build());
-        if (!Settings.canDrawOverlays(this)) { stopSelf(); return; }
+        if (!Settings.canDrawOverlays(this)) {
+            fail("Permissão de sobreposição não concedida. Autorize nas configurações ou por ADB.");
+            return;
+        }
         windows = getSystemService(WindowManager.class);
-        prefs = getSharedPreferences("clock", MODE_PRIVATE);
         clock = new TextView(this);
         clock.setTextColor(Color.WHITE);
         clock.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
@@ -52,15 +66,26 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
         background.setCornerRadius(dp(6));
         clock.setBackground(background);
         clock.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        clock.setText(new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()));
+        clock.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View view) { running = true; }
+            @Override public void onViewDetachedFromWindow(View view) { running = false; }
+        });
         try {
             windows.addView(clock, params());
+            attached = true;
             prefs.registerOnSharedPreferenceChangeListener(this);
             handler.post(tick);
         } catch (RuntimeException e) {
-            // Revocation or a device policy may reject the overlay.
-            clock = null;
-            stopSelf();
+            fail(e.getClass().getSimpleName() + ": " + e.getMessage());
         }
+    }
+
+    private void fail(String reason) {
+        running = false;
+        prefs.edit().putString("error", reason).apply();
+        android.util.Log.e("FireClock", reason);
+        stopSelf();
     }
 
     private int dp(int value) {
@@ -83,9 +108,9 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     }
 
     @Override public void onSharedPreferenceChanged(SharedPreferences p, String key) {
-        if (clock != null) {
+        if (clock != null && attached && (key.equals("corner") || key.equals("size"))) {
             try { windows.updateViewLayout(clock, params()); }
-            catch (RuntimeException e) { stopSelf(); }
+            catch (RuntimeException e) { fail(e.getClass().getSimpleName() + ": " + e.getMessage()); }
         }
     }
 
@@ -94,9 +119,10 @@ public class ClockService extends Service implements SharedPreferences.OnSharedP
     }
 
     @Override public void onDestroy() {
+        running = false;
         handler.removeCallbacksAndMessages(null);
         if (prefs != null) prefs.unregisterOnSharedPreferenceChangeListener(this);
-        if (clock != null) {
+        if (clock != null && attached) {
             try { windows.removeView(clock); } catch (IllegalArgumentException ignored) { }
             clock = null;
         }
